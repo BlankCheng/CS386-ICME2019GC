@@ -31,7 +31,6 @@ def arg_parse():
     return args
 
 
-
 if __name__ == '__main__':
     args = arg_parse()
     if args.seed != -1:
