@@ -67,9 +67,9 @@ class MIT1003(DT.Dataset):
 if __name__ == "__main__":
     root_path = 'D:\\zjcheng\\Workspace\\College\\专业课\\数字图像处理\\DIP2\\CS386-ICME2019GC'
     img = Image.open(os.path.join(root_path, 'data/Images/train/1.png'))
-    img = transforms_train(img)
+    img = preprocess(img)
     smap = Image.open(os.path.join(root_path, 'data/ASD_FixMaps/train/1_s.png'))
-    smap = transforms_train(smap)
+    smap = preprocess(smap)
     plt.figure("Image")
     plt.xticks([])
     plt.yticks([])
