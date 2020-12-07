@@ -35,8 +35,6 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG,
                         filename='train_log.txt',
                         filemode='a',
-                        format=
-                        '%(asctime)s - %(pathname)s[line:%(lineno)d] - %(levelname)s: %(message)s'
                         )
     logger = logging.getLogger()
     args = arg_parse()
