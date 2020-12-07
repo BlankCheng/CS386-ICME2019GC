@@ -8,9 +8,9 @@ class Model(nn.Module):
         super(Model, self).__init__()
         self.encoder_name = encoder_name
         self.size = input_size
-        self.extract_list = ['layer1']
+        self.extract_list = ['layer4']
         self.encoder = self.build_encoder()
-        self.decoder = self.build_decoder()
+        self.decoder = self.build_decoder(in_channels=2048)
         self.conv1 = nn.Conv2d(in_channels=64, out_channels=1, kernel_size=3, stride=1, padding=1)
 
     def build_encoder(self):
