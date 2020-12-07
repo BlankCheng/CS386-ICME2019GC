@@ -2,7 +2,6 @@ import os
 import torch
 import torch.nn as nn
 import torch.utils.data as DT
-import pandas as pd
 import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
 from PIL import Image
@@ -50,9 +49,22 @@ class EyeTracker(DT.Dataset):
         return len(self.imgs)
 
 
+class MIT1003(DT.Dataset):
+    def __init__(self, args, phase):
+        super(MIT1003, self).__init__()
+        # TODO
+
+    def __getitem__(self, index):
+        # TODO
+        pass
+
+    def __len__(self):
+        # TODO
+        pass
+
+
 if __name__ == "__main__":
     root_path = 'D:\\zjcheng\\Workspace\\College\\专业课\\数字图像处理\\DIP2\\CS386-ICME2019GC'
-    # img = mpimg.imread(os.path.join(root_path, 'data/Images/train/9.png'))
     img = Image.open(os.path.join(root_path, 'data/Images/train/1.png'))
     img = transforms_train(img)
     smap = Image.open(os.path.join(root_path, 'data/ASD_FixMaps/train/1_s.png'))
