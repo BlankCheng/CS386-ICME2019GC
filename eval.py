@@ -1,18 +1,12 @@
 import argparse
-from tqdm import tqdm
-import os
-import torch.nn.parallel
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
-import torch.utils.data as DT
-import pandas as pd
-from sklearn.metrics import *
-import numpy as np
-# import torchvision.models as models
 
-from dataloader import EyeTracker, MIT1003
-from models.resnet import *  # TODO: 修改文件名
+import torch.nn as nn
+import torch.nn.parallel
+import torch.utils.data as DT
+from model import Model
+from tqdm import tqdm
+
+from dataloader import EyeTracker
 
 
 def arg_parse():
@@ -52,7 +46,7 @@ if __name__ == '__main__':
     )
 
     # config network
-    net = resnet152(num_classes=10)  # TODO: 修改模型名
+    net = Model(input_size=(3, 224, 224))
     criterion = nn.MSELoss()
     net = net.to(device)
     if args.model_path:

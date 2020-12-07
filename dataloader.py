@@ -1,26 +1,24 @@
 import os
-import torch
-import torch.nn as nn
-import torch.utils.data as DT
-import matplotlib.image as mpimg
+
 import matplotlib.pyplot as plt
+import numpy as np
+import torch.utils.data as DT
 from PIL import Image
 from torchvision import transforms
-import numpy as np
 
 np.set_printoptions(threshold=np.inf)
 CLIP_THRES = 0.05
 WIDTH = HEIGHT = 224
 transforms_train = transforms.Compose([
-        # transforms.RandomSizedCrop(224),
-        # transforms.RandomHorizontalFlip(),
-        # transforms.RandomVerticalFlip(),
-        # transforms.ColorJitter(brightness=0., contrast=1, saturation=0., hue=0.),
-        # transforms.RandomAffine(20, translate=(0, 0.2), scale=(0.9, 1), shear=1, resample=False, fillcolor=0),
-        # transforms.Normalize(mean=[0.485, 0.456, 0.406],
-        #                      std=[0.229, 0.224, 0.225])
-        transforms.Resize((WIDTH, HEIGHT)),
-        transforms.ToTensor(),  # [0,255]的np变成[0,1]的tensor
+    # transforms.RandomSizedCrop(224),
+    # transforms.RandomHorizontalFlip(),
+    # transforms.RandomVerticalFlip(),
+    # transforms.ColorJitter(brightness=0., contrast=1, saturation=0., hue=0.),
+    # transforms.RandomAffine(20, translate=(0, 0.2), scale=(0.9, 1), shear=1, resample=False, fillcolor=0),
+    # transforms.Normalize(mean=[0.485, 0.456, 0.406],
+    #                      std=[0.229, 0.224, 0.225])
+    transforms.Resize((WIDTH, HEIGHT)),
+    transforms.ToTensor(),  # [0,255]的np变成[0,1]的tensor
 
 ])
 
@@ -35,7 +33,7 @@ class EyeTracker(DT.Dataset):
         self.imgs, self.smaps = [], []  # list of PILs
         for file in self.img_files:
             img = Image.open(os.path.join(self.img_path, file))
-            smap = Image.open(os.path.join(self.smap_path, file.split('.')[0]+'_s'+'.png'))
+            smap = Image.open(os.path.join(self.smap_path, file.split('.')[0] + '_s' + '.png'))
             self.imgs.append(img)
             self.smaps.append(smap)
 
@@ -77,4 +75,3 @@ if __name__ == "__main__":
     plt.waitforbuttonpress()
     plt.imshow(smap)
     plt.show()
-

@@ -1,16 +1,15 @@
-import logging
 import argparse
-from tqdm import tqdm
+import logging
 import os
-import torch.nn.parallel
+
 import torch.nn as nn
-import torch.nn.functional as F
+import torch.nn.parallel
 import torch.optim as optim
 import torch.utils.data as DT
-import torchvision.models as models
+from tqdm import tqdm
 
 from dataloader import EyeTracker, MIT1003
-from models.resnet import *  # TODO: 修改文件名
+from model import Model
 
 
 def arg_parse():
@@ -71,7 +70,7 @@ if __name__ == '__main__':
     )
 
     # config network
-    net = resnet152(num_classes=10)  # TODO: 修改模型名
+    net = Model(input_size=(3,224,224)) 
     # net = nn.DataParallel(net)
     optimizer = optim.Adam(net.parameters(), lr=eval(args.lr), betas=(0.9, 0.999))
     criterion = nn.MSELoss()
@@ -114,4 +113,3 @@ if __name__ == '__main__':
                 # TODO: 计算具体指标
             logger.info("#epoch:{}, train loss:{:.4f}, val loss:{:.4f}".format(epoch, train_loss / i, val_loss / j))
             print("--------------------------------------------------\n")
-
