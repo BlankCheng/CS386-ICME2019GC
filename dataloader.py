@@ -9,17 +9,18 @@ from torchvision import transforms
 np.set_printoptions(threshold=np.inf)
 CLIP_THRES = 0.05
 WIDTH = HEIGHT = 224
-transforms_train = transforms.Compose([
+preprocess = transforms.Compose([
+    # transforms.Normalize(mean=[0.485, 0.456, 0.406],
+    #                      std=[0.229, 0.224, 0.225])
+    transforms.Resize((WIDTH, HEIGHT)),
+    transforms.ToTensor(),  # [0,255]的np变成[0,1]的tensor
+])
+augment = transforms.Compose([
     # transforms.RandomSizedCrop(224),
     # transforms.RandomHorizontalFlip(),
     # transforms.RandomVerticalFlip(),
     # transforms.ColorJitter(brightness=0., contrast=1, saturation=0., hue=0.),
     # transforms.RandomAffine(20, translate=(0, 0.2), scale=(0.9, 1), shear=1, resample=False, fillcolor=0),
-    # transforms.Normalize(mean=[0.485, 0.456, 0.406],
-    #                      std=[0.229, 0.224, 0.225])
-    transforms.Resize((WIDTH, HEIGHT)),
-    transforms.ToTensor(),  # [0,255]的np变成[0,1]的tensor
-
 ])
 
 
@@ -32,15 +33,18 @@ class EyeTracker(DT.Dataset):
         self.img_files = os.listdir(self.img_path)
         self.imgs, self.smaps = [], []  # list of PILs
         for file in self.img_files:
-            img = Image.open(os.path.join(self.img_path, file))
-            smap = Image.open(os.path.join(self.smap_path, file.split('.')[0] + '_s' + '.png'))
+            img = preprocess(Image.open(os.path.join(self.img_path, file)))
+            smap = preprocess(Image.open(os.path.join(self.smap_path, file.split('.')[0] + '_s' + '.png')))
+            smap[(smap < CLIP_THRES)] = 0.0
             self.imgs.append(img)
             self.smaps.append(smap)
 
     def __getitem__(self, index):
-        img = transforms_train(self.imgs[index])
-        smap = transforms_train(self.smaps[index])
-        smap[(smap < CLIP_THRES)] = 0.0
+        img = self.imgs[index]
+        smap = self.smaps[index]
+        if self.phase == 'train':
+            img = augment(img)  # TODO: augment需要再img和smap上作用相同
+            smap = augment(smap)
         return img, smap
 
     def __len__(self):
@@ -48,17 +52,16 @@ class EyeTracker(DT.Dataset):
 
 
 class MIT1003(DT.Dataset):
+    # TODO
     def __init__(self, args, phase):
         super(MIT1003, self).__init__()
-        # TODO
+        self.data = [i for i in range(100)]
 
     def __getitem__(self, index):
-        # TODO
-        pass
+        return self.data[index]
 
     def __len__(self):
-        # TODO
-        pass
+        return len(self.data)
 
 
 if __name__ == "__main__":

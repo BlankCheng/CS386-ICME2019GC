@@ -34,7 +34,6 @@ if __name__ == '__main__':
     # load data
     if args.dataset == 'EyeTracker':
         test_dataset = EyeTracker(args=args, phase='test')
-        val_dataset = EyeTracker(args=args, phase='val')
     else:
         raise NotImplementedError("{} is not supported now. Choose from [EyeTracker, MIT1003]".format(args.dataset))
     test_dataloader = DT.DataLoader(

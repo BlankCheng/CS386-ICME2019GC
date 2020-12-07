@@ -70,7 +70,7 @@ if __name__ == '__main__':
     )
 
     # config network
-    net = Model(input_size=(3,224,224)) 
+    net = Model(input_size=(3, 224, 224))
     # net = nn.DataParallel(net)
     optimizer = optim.Adam(net.parameters(), lr=eval(args.lr), betas=(0.9, 0.999))
     criterion = nn.MSELoss()
@@ -85,10 +85,10 @@ if __name__ == '__main__':
         i, train_loss = 0, 0.0
         net.train()
         for data in tqdm(train_dataloader):
-            img, smap = data[0].to(device), data[1].to(device)  # (b, 3, 224, 224), (b, 224, 224)
+            img, smap = data[0].to(device), data[1].to(device)  # (b, 3, 224, 224), (b, 1, 224, 224)
             optimizer.zero_grad()
-            smap_pred = net(img)  # (b, 224, 224)
-            loss = criterion(smap_pred, smap)  # TODO
+            smap_pred = net(img)  # (b, 1, 224, 224)
+            loss = criterion(smap_pred, smap)
             loss.backward()
             optimizer.step()
             train_loss += loss
@@ -102,7 +102,7 @@ if __name__ == '__main__':
             for data in tqdm(val_dataloader):
                 img, smap = data[0].to(device), data[1].to(device)
                 smap_pred = net(img)
-                loss = criterion(smap_pred, smap)  # TODO
+                loss = criterion(smap_pred, smap)
                 val_loss += loss
                 j += 1
             print("validating loss:{:.4f}".format(val_loss / j))
