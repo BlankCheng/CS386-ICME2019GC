@@ -17,6 +17,7 @@ root_path = '/home/zhoujun/CS386-ICME2019GC'
 save_path = os.path.join(root_path, './checkpoints')
 
 
+
 def save_image(tensor, name):
     dir = 'results'
     image = tensor.cpu().clone()  # we clone the tensor to not do changes on it
@@ -25,7 +26,6 @@ def save_image(tensor, name):
     if not os.path.exists(dir):
         os.makedirs(dir)
     image.save(name)
-
 
 if __name__ == '__main__':
     best_epoch, phase, idx = 7, 'test', '272'
