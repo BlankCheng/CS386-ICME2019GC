@@ -1,9 +1,9 @@
 import os
 
-import matplotlib.pyplot as plt
 import torch
 from PIL import Image
 from torchvision import transforms
+
 from dataloader import preprocess
 from model import Model
 
@@ -13,7 +13,7 @@ loader = transforms.Compose([
     transforms.ToTensor()])
 
 unloader = transforms.ToPILImage()
-root_path = '/home/zhoujun/CS386-ICME2019GC'
+root_path = '/NAS2020/Share/chenxianyu/PycharmProjects/CS386-ICME2019GC'
 save_path = os.path.join(root_path, './checkpoints')
 
 
@@ -28,7 +28,7 @@ def save_image(tensor, name):
 
 
 if __name__ == '__main__':
-    best_epoch, phase, idx = 7, 'test', '272'
+    best_epoch, phase, idx = 12, 'train', '100'
     image_path = os.path.join(root_path, './data/Images/{}/{}.png'.format(phase, idx))
     smap_path = os.path.join(root_path, './data/ASD_FixMaps/{}/{}_s.png'.format(phase, idx))
     img = Image.open(image_path)

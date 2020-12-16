@@ -2,8 +2,6 @@ import argparse
 import logging
 import os
 
-import torch.nn as nn
-import torch.nn.parallel
 import torch.optim as optim
 import torch.utils.data as DT
 from tqdm import tqdm
@@ -16,7 +14,7 @@ from utils import *
 def arg_parse():
     parser = argparse.ArgumentParser()
     parser.add_argument('--root_path', type=str,
-                        default='/home/zhoujun/CS386-ICME2019GC')
+                        default='/NAS2020/Share/chenxianyu/PycharmProjects/CS386-ICME2019GC')
     parser.add_argument('--data_path', type=str, default='./data')
     parser.add_argument('--save_path', type=str, default='./checkpoints')
     parser.add_argument('--model_path', type=str, default=None)
@@ -25,7 +23,7 @@ def arg_parse():
     parser.add_argument('--alpha2', type=str, default='1e-1')
     parser.add_argument('--alpha3', type=str, default='1e-1')
     parser.add_argument('--alpha4', type=str, default='1e-1')
-    parser.add_argument('--batch_size', type=int, default=32)
+    parser.add_argument('--batch_size', type=int, default=8)
     parser.add_argument('--lr', type=str, default='1e-3')
     parser.add_argument('--max_epochs', type=int, default=100)
     parser.add_argument('--seed', type=int, default=-1)

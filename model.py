@@ -1,5 +1,5 @@
 import torch.nn as nn
-from numpy import concatenate
+from torch import cat
 from utils import FeatureExtractor
 
 
@@ -10,7 +10,9 @@ class Model(nn.Module):
         self.size = input_size
         self.extract_list = ['layer2', 'layer3', 'layer4']
         self.encoder = self.build_encoder()
-        self.decoder = self.build_decoder(in_channels=2048)
+        self.decoder1 = self.build_decoder(in_channels=512)
+        self.decoder2 = self.build_decoder(in_channels=1024)
+        self.decoder3 = self.build_decoder(in_channels=2048)
         self.conv1 = nn.Conv2d(in_channels=64, out_channels=1, kernel_size=3, stride=1, padding=1)
         self.conv2 = nn.Conv2d(in_channels=3, out_channels=1, kernel_size=3, stride=1, padding=1)
         self.relu = nn.Sigmoid()
@@ -35,13 +37,14 @@ class Model(nn.Module):
 
     def forward(self, input):
         x1, x2, x3 = self.encoder(input)
-        x1 = self.decoder(x1)
-        x2 = self.decoder(x2)
-        x3 = self.decoder(x3)
+        x1 = self.decoder1(x1)
+        x2 = self.decoder2(x2)
+        x3 = self.decoder3(x3)
         x1 = self.conv1(x1)
         x2 = self.conv1(x2)
         x3 = self.conv1(x3)
-        x = concatenate([x1, x2, x3], axis=3)
+        x = cat([x1, x2, x3], dim=1)
+        print(x.shape)
         output = self.conv2(x)
         output = self.relu(output)
         return output

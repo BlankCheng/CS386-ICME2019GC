@@ -32,7 +32,7 @@ class FeatureExtractor(nn.Module):
         for name, module in self.submodule._modules.items():
             if name == "classifier" or name == "fc": x = flatten(x, 1)
             x = module(x)
-            print(name, x.shape)
+            # print(name, x.shape)
             if name in self.extracted_layers:
                 outputs.append(x)
                 t += 1
@@ -41,24 +41,24 @@ class FeatureExtractor(nn.Module):
         return outputs
 
 
-def generate_dummy(size=14,num_fixations=100,num_salience_points=200):
+def generate_dummy(size=14, num_fixations=100, num_salience_points=200):
     # first generate dummy gt and salience map
-    discrete_gt = np.zeros((size,size))
-    s_map = np.zeros((size,size))
+    discrete_gt = np.zeros((size, size))
+    s_map = np.zeros((size, size))
 
-    for i in range(0,num_fixations):
-        discrete_gt[np.random.randint(size),np.random.randint(size)] = 1.0
+    for i in range(0, num_fixations):
+        discrete_gt[np.random.randint(size), np.random.randint(size)] = 1.0
 
-    for i in range(0,num_salience_points):
-        s_map[np.random.randint(size),np.random.randint(size)] = 255*round(random.random(),1)
+    for i in range(0, num_salience_points):
+        s_map[np.random.randint(size), np.random.randint(size)] = 255 * round(random.random(), 1)
     # check if gt and s_map are same size
-    assert discrete_gt.shape==s_map.shape, 'sizes of ground truth and salience map don\'t match'
-    return s_map,discrete_gt
+    assert discrete_gt.shape == s_map.shape, 'sizes of ground truth and salience map don\'t match'
+    return s_map, discrete_gt
 
 
 def normalize_map(s_map):
     # normalize the salience map (as done in MIT code)
-    norm_s_map = (s_map - torch.min(s_map))/((torch.max(s_map) - torch.min(s_map)) * 1.0)
+    norm_s_map = (s_map - torch.min(s_map)) / ((torch.max(s_map) - torch.min(s_map)) * 1.0)
     return norm_s_map
 
 
