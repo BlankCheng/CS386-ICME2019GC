@@ -1,9 +1,9 @@
-from torch import nn, flatten
-from torchvision import models
+import random
+
 import numpy as np
 import torch
-import random
-import math
+from torch import nn, flatten
+from torchvision import models
 
 
 class FeatureExtractor(nn.Module):
@@ -32,7 +32,7 @@ class FeatureExtractor(nn.Module):
         for name, module in self.submodule._modules.items():
             if name == "classifier" or name == "fc": x = flatten(x, 1)
             x = module(x)
-            # print(name, x.shape)
+            print(name, x.shape)
             if name in self.extracted_layers:
                 outputs.append(x)
                 t += 1

@@ -1,6 +1,5 @@
 import torch.nn as nn
-import torch.nn.functional as F
-
+from numpy import concatenate
 from utils import FeatureExtractor
 
 
@@ -9,10 +8,11 @@ class Model(nn.Module):
         super(Model, self).__init__()
         self.encoder_name = encoder_name
         self.size = input_size
-        self.extract_list = ['layer4']
+        self.extract_list = ['layer2', 'layer3', 'layer4']
         self.encoder = self.build_encoder()
         self.decoder = self.build_decoder(in_channels=2048)
         self.conv1 = nn.Conv2d(in_channels=64, out_channels=1, kernel_size=3, stride=1, padding=1)
+        self.conv2 = nn.Conv2d(in_channels=3, out_channels=1, kernel_size=3, stride=1, padding=1)
         self.relu = nn.Sigmoid()
 
     def build_encoder(self):
@@ -34,7 +34,14 @@ class Model(nn.Module):
         return Dcov
 
     def forward(self, input):
-        x = self.encoder(input)[0]
-        x = self.decoder(x)
-        output = F.sigmoid(self.conv1(x))
+        x1, x2, x3 = self.encoder(input)
+        x1 = self.decoder(x1)
+        x2 = self.decoder(x2)
+        x3 = self.decoder(x3)
+        x1 = self.conv1(x1)
+        x2 = self.conv1(x2)
+        x3 = self.conv1(x3)
+        x = concatenate([x1, x2, x3], axis=3)
+        output = self.conv2(x)
+        output = self.relu(output)
         return output
