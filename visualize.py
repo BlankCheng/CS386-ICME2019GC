@@ -29,12 +29,14 @@ def save_image(tensor, name):
 
 if __name__ == '__main__':
     best_epoch, phase, idx = 7, 'test', '272'
-    image_path = os.path.join(root_path, './data/{}/{}.png'.format(phase, idx))
-    smap_path = os.path.join(root_path, './data/{}/{}_s.png'.format(phase, idx))
+    image_path = os.path.join(root_path, './data/Images/{}/{}.png'.format(phase, idx))
+    smap_path = os.path.join(root_path, './data/ASD_FixMaps/{}/{}_s.png'.format(phase, idx))
     img = Image.open(image_path)
     smap = Image.open(smap_path)
     img = preprocess(img)
     smap = preprocess(smap)
+    img = torch.unsqueeze(img, 0)
+    print(img.size())
 
     net = Model(input_size=(3, 224, 224))
     net.load_state_dict(torch.load(os.path.join(save_path, 'best_{}.pth'.format(best_epoch))))

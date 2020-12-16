@@ -7,12 +7,13 @@ from model import Model
 from tqdm import tqdm
 
 from dataloader import EyeTracker
+from utils import *
 
 
 def arg_parse():
     parser = argparse.ArgumentParser()
     parser.add_argument('--root_path', type=str,
-                        default='D:\\zjcheng\\Workspace\\College\\专业课\\数字图像处理\\DIP2\\CS386-ICME2019GC')
+                        default='/home/zhoujun/CS386-ICME2019GC')
     parser.add_argument('--data_path', type=str, default='./data')
     parser.add_argument('--model_path', type=str, required=True)
     parser.add_argument('--dataset', type=str, choices=['EyeTracker', 'MIT1003'], default='EyeTracker')
@@ -54,7 +55,7 @@ if __name__ == '__main__':
         raise AssertionError("--model_path is not provided.")
 
     # inference
-    smaps, smaps_pred = [], []
+    smaps, smaps_pred = None, None
     i, test_loss = 0, 0.0
     net.eval()
     print("-----------------Testing Start-----------------\n")
@@ -65,9 +66,19 @@ if __name__ == '__main__':
             loss = criterion(smap_pred, smap)  # TODO
             test_loss += loss
             i += 1
-            smaps.append(smap.detach().cpu().numpy().squeeze((0, 1)))
-            smaps_pred.append(smap_pred.detach().cpu().numpy().squeeze((0, 1)))
+            if smaps is None:
+                smaps = smap
+                smaps_pred = smap_pred
+            else:
+                smaps = torch.cat((smaps, smap), dim=0)
+                smaps_pred = torch.cat((smaps_pred, smap_pred), dim=0)
         print("test loss:{:.4f}".format(test_loss / i))
 
-    # eval
-    # TODO: 具体指标
+    # metrics
+    sauc = calculate_sauc(smaps, smaps_pred)
+    auc_j = calculate_auc_j(smaps, smaps_pred)
+    nss = calculate_nss(smaps, smaps_pred)
+    cc = calculate_cc(smaps, smaps_pred)
+    sim = calculate_sim(smaps, smaps_pred)
+    kld = calculate_kld(smaps, smaps_pred)
+    print("sauc:{:.4f} | auc_j:{:.4f} | nss:{:.4f} | cc:{:.4f} | sim:{:.4f} | kld:{:.4f}".format(sauc, auc_j, nss, cc, sim, kld))

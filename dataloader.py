@@ -1,5 +1,6 @@
 import os
-
+import torch
+import random
 import matplotlib.pyplot as plt
 import numpy as np
 import torch.utils.data as DT
@@ -20,7 +21,7 @@ augment = transforms.Compose([
     # transforms.RandomHorizontalFlip(),
     # transforms.RandomVerticalFlip(),
     # transforms.ColorJitter(brightness=0., contrast=1, saturation=0., hue=0.),
-    # transforms.RandomAffine(20, translate=(0, 0.2), scale=(0.9, 1), shear=1, resample=False, fillcolor=0),
+    # transforms.RandomAffine(15, translate=(0, 0.1), scale=(0.9, 1), shear=1, resample=False, fillcolor=0),
 ])
 
 
@@ -42,8 +43,9 @@ class EyeTracker(DT.Dataset):
     def __getitem__(self, index):
         img = self.imgs[index]
         smap = self.smaps[index]
+        torch.manual_seed(random.randint(0, 100))
         if self.phase == 'train':
-            img = augment(img)  # TODO: augment需要再img和smap上作用相同
+            img = augment(img)
             smap = augment(smap)
         return img, smap
 
