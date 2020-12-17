@@ -16,8 +16,10 @@ python eval.py [--cuda] [--root_path <ROOT_PATH>] <--model_path MODEL_PATH>
 ```
 
 ## Visualize
+```
+python visualize.py
+```
 The image to visualize is set in visualize.py instead of using arguments.
-```python visualize.py```
 
 ## TODO
 [ ] Add pre-training.
