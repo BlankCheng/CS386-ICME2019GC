@@ -3,8 +3,8 @@ SJTU CS386 project on ASD saliency map prediction.
 
 
 ## Note
-Data is split into train/val/test as 240:30:30. e.g. The path to training data may be "/ROOT_PATH/data/Images/train/x.png".\\
-Currently model is a ResNet-based autoencoder. The model can be replaced by any network matching the input and output. \\
+Data is split into train/val/test as 240:30:30. e.g. The path to training data may be "/ROOT_PATH/data/Images/train/x.png".
+Currently model is a ResNet-based autoencoder. The model can be replaced by any network matching the input and output. 
 Four losses are added to mse loss, but not all work. Coefficients need adjusting.
 
 
