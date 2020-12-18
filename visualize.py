@@ -7,7 +7,7 @@ from torchvision import transforms
 from dataloader import preprocess
 from model import Model
 
-os.environ["VISIBLE_DEVICES"] = '1'
+os.environ["VISIBLE_DEVICES"] = '5'
 
 loader = transforms.Compose([
     transforms.ToTensor()])
@@ -28,7 +28,7 @@ def save_image(tensor, name):
 
 
 if __name__ == '__main__':
-    best_epoch, phase, idx = 7, 'test', '272'
+    best_epoch, phase, idx = 40, 'train', '1'
     image_path = os.path.join(root_path, './data/Images/{}/{}.png'.format(phase, idx))
     smap_path = os.path.join(root_path, './data/ASD_FixMaps/{}/{}_s.png'.format(phase, idx))
     img = Image.open(image_path)
@@ -38,8 +38,8 @@ if __name__ == '__main__':
     img = torch.unsqueeze(img, 0)
     print(img.size())
 
-    net = Model(input_size=(3, 224, 224))
-    net.load_state_dict(torch.load(os.path.join(save_path, 'best_{}.pth'.format(best_epoch))))
+    net = Model(input_size=(3, 224, 224), encoder_name='vgg16')
+    net.load_state_dict(torch.load(os.path.join(save_path, 'epoch_{}.pth'.format(best_epoch))))
     smap_pred = net(img)
     save_image(smap, '{}_gt.png'.format(idx))
     save_image(smap_pred, '{}_pred.png'.format(idx))

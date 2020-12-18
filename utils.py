@@ -21,6 +21,19 @@ class FeatureExtractor(nn.Module):
             model = models.resnet101(pretrained=True)
         elif self.model_name == 'vgg16':
             model = models.vgg16(pretrained=True)
+            model = model._modules['features']
+            for i_ in range(23, 31):
+                del model._modules[str(i_)]
+            model.add_module("dilated1", nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, stride=1,
+                                                   padding=1, dilation=1))
+            model.add_module("relu1", nn.ReLU())
+            model.add_module("dilated2", nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, stride=1,
+                                                   padding=1, dilation=1))
+            model.add_module("relu2", nn.ReLU())
+            model.add_module("dilated3", nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, stride=1,
+                                                   padding=1, dilation=1))
+            model.add_module("relu3", nn.ReLU())
+
         else:
             print("Model name is unknown")
         return model
@@ -32,34 +45,13 @@ class FeatureExtractor(nn.Module):
         for name, module in self.submodule._modules.items():
             if name == "classifier" or name == "fc": x = flatten(x, 1)
             x = module(x)
-            # print(name, x.shape)
+            # print(name, module, x.shape)
             if name in self.extracted_layers:
                 outputs.append(x)
                 t += 1
                 if t == len(self.extracted_layers):
                     return outputs
         return outputs
-
-
-def generate_dummy(size=14,num_fixations=100,num_salience_points=200):
-    # first generate dummy gt and salience map
-    discrete_gt = np.zeros((size,size))
-    s_map = np.zeros((size,size))
-
-    for i in range(0,num_fixations):
-        discrete_gt[np.random.randint(size),np.random.randint(size)] = 1.0
-
-    for i in range(0,num_salience_points):
-        s_map[np.random.randint(size),np.random.randint(size)] = 255*round(random.random(),1)
-    # check if gt and s_map are same size
-    assert discrete_gt.shape==s_map.shape, 'sizes of ground truth and salience map don\'t match'
-    return s_map,discrete_gt
-
-
-def normalize_map(s_map):
-    # normalize the salience map (as done in MIT code)
-    norm_s_map = (s_map - torch.min(s_map))/((torch.max(s_map) - torch.min(s_map)) * 1.0)
-    return norm_s_map
 
 
 def discretize_gt(gt):
@@ -144,7 +136,7 @@ def calculate_sauc(gt_, s_map_, other_map_=None, splits=100):
     return ret_ / batch_size
 
 
-def calculate_auc_b(gt_, s_map_, other_map_=None, splits=100):
+def calculate_auc_b(smaps, smaps_pred):
     """
     Calculate AUC-Borji.
     """
@@ -180,6 +172,9 @@ def calculate_auc_j(gt_, s_map_):
         # num fixations is no. of salience map values at gt >0
 
         thresholds = sorted(set(thresholds))
+
+        # fp_list = []
+        # tp_list = []
         area = []
         area.append((0.0, 0.0))
         for thresh in thresholds:
@@ -196,12 +191,19 @@ def calculate_auc_j(gt_, s_map_):
             fp = (np.sum(temp) - num_overlap) / ((np.shape(gt)[0] * np.shape(gt)[1]) - num_fixations)
 
             area.append((round(tp, 4), round(fp, 4)))
+        # tp_list.append(tp)
+        # fp_list.append(fp)
 
+        # tp_list.reverse()
+        # fp_list.reverse()
         area.append((1.0, 1.0))
+        # tp_list.append(1.0)
+        # fp_list.append(1.0)
+        # print tp_list
         area.sort(key=lambda x: x[0])
         tp_list = [x[0] for x in area]
         fp_list = [x[1] for x in area]
-        # print(np.trapz(np.array(tp_list), np.array(fp_list)))
+        print(np.trapz(np.array(tp_list), np.array(fp_list)))
         ret_ += np.trapz(np.array(tp_list), np.array(fp_list))
     return ret_ / batch_size
 
@@ -215,10 +217,19 @@ def calculate_nss(gt, s_map):
     s_mu = torch.mean(s_map, dim=[1, 2, 3]).view(-1, 1, 1, 1)
     s_std = torch.std(s_map, dim=[1, 2, 3]).view(-1, 1, 1, 1)
     s_map_norm = (s_map - s_mu) / s_std
-    nss = torch.where(s_map_norm * gt > 0, s_map_norm, torch.zeros_like(s_map_norm))
-    tot = torch.sum(nss > 0)
-    # print(tot)
-    return torch.sum(nss) / tot
+    nss = torch.where(s_map_norm * gt > 0, s_map_norm * gt, torch.zeros_like(s_map_norm))
+    # tot = torch.sum(nss > 0)
+    # print(tot)\
+    print(torch.sum(nss > 0))
+    return torch.sum(nss) / (torch.sum(nss > 0))
+    """
+        Calculate the normalized scanpath saliency.
+        """
+    # gt = discretize_gt(gt)
+    # print(torch.max(gt), gt.size())
+    # s_map_norm = (s_map - torch.mean(s_map)) / torch.std(s_map)
+    # nss = torch.where(gt > 0.99, s_map_norm, s_map_norm * 0)
+    # return torch.mean(nss)
 
 
 def calculate_cc(gt, s_map):
@@ -245,24 +256,46 @@ def calculate_sim(gt, s_map):
     gt = normalize_map(gt)
     s_map = s_map / torch.sum(s_map)
     gt = gt / torch.sum(gt)
-    return torch.sum(torch.min(gt, s_map))
+    _, (x_, y_) = torch.where(gt > 0)
+    sim = torch.zeros(1)
+    for i in zip(x_, y_):
+        sim = sim + torch.min(gt[i[0], i[1]], s_map[i[0], i[1]])
+    return sim
 
 
 def calculate_kld(gt, s_map):
     """
     Calculate KL-Divergence.
     """
-    s_map = s_map / torch.sum(s_map)
-    gt = gt / torch.sum(gt)
+    s_map = s_map
+    # gt = torch.where(gt > 0, torch.ones_like(gt), gt * 0)
     eps = 2.2204e-16
-    return torch.sum(gt * torch.log(eps + gt / (s_map + eps)))
+    return torch.mean(gt * torch.log(eps + (gt + eps) / (s_map + eps)))
 
 
-if __name__ == '__main__':
-    from torch import rand
+if __name__ == "__main__":
+    import torch
 
-    extract_list = ["conv1", "maxpool", "layer1", "avgpool", "fc"]
-    extract_result = FeatureExtractor('resnet101', extract_list)
+    #############################################################################
+    # test resnet101
+    if False:
+        extract_list = ["conv1", "maxpool", "layer1", "avgpool", "fc"]
+        extract_result = FeatureExtractor('resnet101', extract_list)
+        x_tensor = torch.randn((10, 3, 224, 224))
+        extract_result(x_tensor)
+    #############################################################################
 
-    x_tensor = rand((10, 3, 224, 224))
-    extract_result(x_tensor)
+    #############################################################################
+    # test vgg16
+    if True:
+        extract_list = ["15", "22", "relu3"]
+        extract_result = FeatureExtractor('vgg16', extract_list)
+        print(extract_result)
+        x = torch.randn((10, 3, 224, 224))
+        Y = extract_result(x)
+        for y in Y:
+            print(y.size())
+    #############################################################################
+    # model = models.resnet101(pretrained=False)
+    # model = models.vgg16(pretrained=False)
+    # print(model)
