@@ -1,19 +1,17 @@
 import argparse
 
-import torch.nn as nn
-import torch.nn.parallel
 import torch.utils.data as DT
-from model import Model
 from tqdm import tqdm
 
 from dataloader import EyeTracker
+from model import Model
 from utils import *
 
 
 def arg_parse():
     parser = argparse.ArgumentParser()
     parser.add_argument('--root_path', type=str,
-                        default='/home/zhoujun/CS386-ICME2019GC')
+                        default='/NAS2020/Share/chenxianyu/PycharmProjects/CS386-ICME2019GC')
     parser.add_argument('--data_path', type=str, default='./data')
     parser.add_argument('--model_path', type=str, required=True)
     parser.add_argument('--dataset', type=str, choices=['EyeTracker', 'MIT1003'], default='EyeTracker')

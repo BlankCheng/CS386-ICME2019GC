@@ -23,6 +23,7 @@ def arg_parse():
     parser.add_argument('--alpha2', type=str, default='1e-1')
     parser.add_argument('--alpha3', type=str, default='1e-1')
     parser.add_argument('--alpha4', type=str, default='1e-1')
+    parser.add_argument('--weight_decay', type=str, default='1e-2')
     parser.add_argument('--batch_size', type=int, default=8)
     parser.add_argument('--lr', type=str, default='1e-3')
     parser.add_argument('--max_epochs', type=int, default=100)
@@ -43,6 +44,7 @@ if __name__ == '__main__':
     args = arg_parse()
     if args.seed != -1:
         torch.manual_seed(args.seed)
+    print(torch.cuda.is_available())
     device = torch.device("cuda" if args.cuda else "cpu")
     save_path = os.path.join(args.root_path, args.save_path)
 
@@ -71,9 +73,9 @@ if __name__ == '__main__':
     )
 
     # config network
-    net = Model(input_size=(3, 224, 224), encoder_name='vgg16')
+    net = Model(input_size=(3, 224, 224))
     # net = nn.DataParallel(net)
-    optimizer = optim.Adam(net.parameters(), lr=eval(args.lr), betas=(0.9, 0.999))
+    optimizer = optim.Adam(net.parameters(), lr=eval(args.lr), betas=(0.9, 0.999), weight_decay=eval(args.weight_decay))
     mse = nn.MSELoss()
     net = net.to(device)
     if args.model_path is not None:
@@ -90,18 +92,17 @@ if __name__ == '__main__':
             img, smap = data[0].to(device), data[1].to(device)  # (b, 3, 224, 224), (b, 1, 224, 224)
             optimizer.zero_grad()
             smap_pred = net(img)  # (b, 1, 224, 224)
-            loss = mse(smap_pred, smap) \
-                - alpha1 * calculate_nss(smap, smap_pred) \
-                - alpha2 * calculate_cc(smap, smap_pred) \
-                # - alpha3 * calculate_sim(smap, smap_pred) \
-                # + alpha4 * calculate_kld(smap, smap_pred)
+            loss = 0 * mse(smap_pred, smap) \
+                   - alpha1 * calculate_nss(smap, smap_pred) \
+                   - alpha2 * calculate_cc(smap, smap_pred) \
+                   - alpha3 * calculate_sim(smap, smap_pred) \
+                   + alpha4 * calculate_kld(smap, smap_pred)
             loss.backward()
             optimizer.step()
             train_loss += loss
             i += 1
             print("#epoch:{}, #batch:{}, loss:{:.4f}".format(epoch, i, loss))
-        if epoch % 10 == 0:
-            torch.save(net.state_dict(), os.path.join(save_path, 'epoch_{}.pth'.format(epoch)))
+        # torch.save(net.state_dict(), os.path.join(save_path, 'epoch_{}.pth'.format(epoch)))
         # validate
         print("-----------------Validating Start-----------------\n")
         j, val_loss = 0, 0.0
@@ -111,11 +112,11 @@ if __name__ == '__main__':
             for data in tqdm(val_dataloader):
                 img, smap = data[0].to(device), data[1].to(device)
                 smap_pred = net(img)
-                loss = mse(smap_pred, smap) \
-                    - alpha1 * calculate_nss(smap, smap_pred) \
-                    - alpha2 * calculate_cc(smap, smap_pred) \
-                    # - alpha3 * calculate_sim(smap, smap_pred) \
-                    # + alpha4 * calculate_kld(smap, smap_pred)
+                loss = 0 * mse(smap_pred, smap) \
+                       - alpha1 * calculate_nss(smap, smap_pred) \
+                       - alpha2 * calculate_cc(smap, smap_pred) \
+                       - alpha3 * calculate_sim(smap, smap_pred) \
+                       + alpha4 * calculate_kld(smap, smap_pred)
                 val_loss += loss
                 j += 1
                 if smaps is None:
@@ -130,13 +131,17 @@ if __name__ == '__main__':
                 print("New best model saved.")
                 torch.save(net.state_dict(), os.path.join(save_path, 'best_{}.pth'.format(epoch)))
             # metrics
-            # sauc = calculate_sauc(smaps, smaps_pred)
-            # auc_j = calculate_auc_j(smaps, smaps_pred)
+            sauc = calculate_sauc(smaps, smaps_pred)
+            auc_j = calculate_auc_j(smaps, smaps_pred)
             nss = calculate_nss(smaps, smaps_pred)
             cc = calculate_cc(smaps, smaps_pred)
-            # sim = calculate_sim(smaps, smaps_pred)
-            # kld = calculate_kld(smaps, smaps_pred)
-            print("sauc:{:.4f} | auc_j:{:.4f} | nss:{:.4f} | cc:{:.4f} | sim:{:.4f} | kld:{:.4f}".format(-1, -1, nss, cc, -1, -1))
+            sim = calculate_sim(smaps, smaps_pred)
+            kld = calculate_kld(smaps, smaps_pred)
+            print(
+                "sauc:{:.4f} | auc_j:{:.4f} | nss:{:.4f} | cc:{:.4f} | sim:{:.4f} | kld:{:.4f}".format(-1, -1, nss, cc,
+                                                                                                       sim, kld))
             logger.info("#epoch:{}, train loss:{:.4f}, val loss:{:.4f}\n".format(epoch, train_loss / i, val_loss / j))
-            logger.info("#epoch:{}, sauc:{:.4f} | auc_j:{:.4f} | nss:{:.4f} | cc:{:.4f} | sim:{:.4f} | kld:{:.4f}\n".format(epoch, -1, -1, nss, cc, -1, -1))
+            logger.info(
+                "#epoch:{}, sauc:{:.4f} | auc_j:{:.4f} | nss:{:.4f} | cc:{:.4f} | sim:{:.4f} | kld:{:.4f}\n".format(
+                    epoch, -1, -1, nss, cc, sim, kld))
             print("--------------------------------------------------\n")
