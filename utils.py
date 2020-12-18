@@ -1,9 +1,9 @@
-from torch import nn, flatten
-from torchvision import models
+import random
+
 import numpy as np
 import torch
-import random
-import math
+from torch import nn, flatten
+from torchvision import models
 
 
 class FeatureExtractor(nn.Module):
@@ -52,6 +52,27 @@ class FeatureExtractor(nn.Module):
                 if t == len(self.extracted_layers):
                     return outputs
         return outputs
+
+
+def generate_dummy(size=14, num_fixations=100, num_salience_points=200):
+    # first generate dummy gt and salience map
+    discrete_gt = np.zeros((size, size))
+    s_map = np.zeros((size, size))
+
+    for i in range(0, num_fixations):
+        discrete_gt[np.random.randint(size), np.random.randint(size)] = 1.0
+
+    for i in range(0, num_salience_points):
+        s_map[np.random.randint(size), np.random.randint(size)] = 255 * round(random.random(), 1)
+    # check if gt and s_map are same size
+    assert discrete_gt.shape == s_map.shape, 'sizes of ground truth and salience map don\'t match'
+    return s_map, discrete_gt
+
+
+def normalize_map(s_map):
+    # normalize the salience map (as done in MIT code)
+    norm_s_map = (s_map - torch.min(s_map)) / ((torch.max(s_map) - torch.min(s_map)) * 1.0)
+    return norm_s_map
 
 
 def discretize_gt(gt):
@@ -222,14 +243,6 @@ def calculate_nss(gt, s_map):
     # print(tot)\
     print(torch.sum(nss > 0))
     return torch.sum(nss) / (torch.sum(nss > 0))
-    """
-        Calculate the normalized scanpath saliency.
-        """
-    # gt = discretize_gt(gt)
-    # print(torch.max(gt), gt.size())
-    # s_map_norm = (s_map - torch.mean(s_map)) / torch.std(s_map)
-    # nss = torch.where(gt > 0.99, s_map_norm, s_map_norm * 0)
-    # return torch.mean(nss)
 
 
 def calculate_cc(gt, s_map):

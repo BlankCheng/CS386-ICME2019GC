@@ -1,9 +1,9 @@
 import os
 
-import matplotlib.pyplot as plt
 import torch
 from PIL import Image
 from torchvision import transforms
+
 from dataloader import preprocess
 from model import Model
 
@@ -13,7 +13,7 @@ loader = transforms.Compose([
     transforms.ToTensor()])
 
 unloader = transforms.ToPILImage()
-root_path = '/home/zhoujun/CS386-ICME2019GC'
+root_path = '/NAS2020/Share/chenxianyu/PycharmProjects/CS386-ICME2019GC'
 save_path = os.path.join(root_path, './checkpoints')
 
 
