@@ -26,7 +26,7 @@ python visualize.py
 The image to visualize is set in visualize.py instead of using arguments.
 
 ## TODO
-- [ ] Add pre-training.
+- [x] Add pre-training.
 - [ ] Use fancy models.
 - [ ] Complete evaluation.
 
