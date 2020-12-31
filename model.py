@@ -1,21 +1,33 @@
 import torch.nn as nn
 from torch import cat
+
+from back_model.nonlocalblock import NonLocalBlock
 from utils import FeatureExtractor
 
 
 class Model(nn.Module):
-    def __init__(self, input_size, encoder_name='resnet101'):
+    def __init__(self, input_size, encoder_name='resnet101', extract_list=None, channels=None):
         super(Model, self).__init__()
+        if channels is None:
+            channels = [512, 1024, 2048]
+        if extract_list is None:
+            extract_list = ['layer2', 'layer3', 'layer4']
+        self.channels = channels
         self.encoder_name = encoder_name
         self.size = input_size
-        self.extract_list = ['layer2', 'layer3', 'layer4']
+        self.extract_list = extract_list
         self.encoder = self.build_encoder()
-        self.decoder1 = self.build_decoder(in_channels=512)
-        self.decoder2 = self.build_decoder(in_channels=1024)
-        self.decoder3 = self.build_decoder(in_channels=2048)
+        self.localblock = []
+        for i_ in self.channels:
+            self.localblock.append(NonLocalBlock(i_, i_, i_ // 4))
+        self.localblock = nn.ModuleList(self.localblock)
+        self.decoder = []
+        for i_ in self.channels:
+            self.decoder.append(self.build_decoder(in_channels=i_))
+        self.decoder_list = nn.ModuleList(self.decoder)
         self.conv1 = nn.Conv2d(in_channels=64, out_channels=1, kernel_size=3, stride=1, padding=1)
-        self.conv2 = nn.Conv2d(in_channels=3, out_channels=1, kernel_size=3, stride=1, padding=1)
-        self.relu = nn.Sigmoid()
+        self.conv2 = nn.Conv2d(in_channels=len(self.channels), out_channels=1, kernel_size=3, stride=1, padding=1)
+        self.activation = nn.Sigmoid()
 
     def build_encoder(self):
         model = FeatureExtractor(self.encoder_name, self.extract_list)
@@ -36,15 +48,29 @@ class Model(nn.Module):
         return Dcov
 
     def forward(self, input):
-        x1, x2, x3 = self.encoder(input)
-        x1 = self.decoder1(x1)
-        x2 = self.decoder2(x2)
-        x3 = self.decoder3(x3)
-        x1 = self.conv1(x1)
-        x2 = self.conv1(x2)
-        x3 = self.conv1(x3)
-        x = cat([x1, x2, x3], dim=1)
-        print(x.shape)
+        x_e = self.encoder(input)
+        x_block = []
+        for _ in range(len(x_e)):
+            x_block.append(self.localblock[_](x_e[_]))
+        x_out = []
+        for _ in range(len(x_block)):
+            x_out.append(self.conv1(self.decoder_list[_](x_block[_])))
+        x = cat(x_out, dim=1)
+        # print(x.shape)
         output = self.conv2(x)
-        output = self.relu(output)
+        output = self.activation(output)
         return output
+
+
+if __name__ == '__main__':
+    import torch
+    from torch import rand
+
+    a = True
+    device = torch.device("cuda" if a else "cpu")
+    x_tensor = rand((10, 3, 224, 224)).to(device)
+    net = Model(input_size=(3, 224, 224), encoder_name='densenet169', extract_list=['denseblock1', 'denseblock2'],
+                channels=[256, 512]).to(device)
+    print(x_tensor)
+    y = net(x_tensor)
+    print(y)

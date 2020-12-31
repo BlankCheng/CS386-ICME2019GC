@@ -5,6 +5,8 @@ import torch
 from torch import nn, flatten
 from torchvision import models
 
+from back_model.se_resnest import se_resnext101
+
 
 class FeatureExtractor(nn.Module):
     def __init__(self, model_name, extracted_layers):
@@ -20,22 +22,14 @@ class FeatureExtractor(nn.Module):
         elif self.model_name == 'resnet101':
             model = models.resnet101(pretrained=True)
         elif self.model_name == 'vgg16':
-            model = models.vgg16(pretrained=True)
-            model = model._modules['features']
-            for i_ in range(23, 31):
-                del model._modules[str(i_)]
-            model.add_module("dilated1", nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, stride=1,
-                                                   padding=1, dilation=1))
-            model.add_module("relu1", nn.ReLU())
-            model.add_module("dilated2", nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, stride=1,
-                                                   padding=1, dilation=1))
-            model.add_module("relu2", nn.ReLU())
-            model.add_module("dilated3", nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, stride=1,
-                                                   padding=1, dilation=1))
-            model.add_module("relu3", nn.ReLU())
-
+            model = models.vgg16(pretrained=True)._modules['features']
+        elif self.model_name == 'densenet169':
+            model = models.densenet169(pretrained=True)._modules['features']
+        elif self.model_name == 'se_resnext101':
+            model = se_resnext101(2)
         else:
             print("Model name is unknown")
+        # print(model)
         return model
 
     # 自己修改forward函数
@@ -43,9 +37,9 @@ class FeatureExtractor(nn.Module):
         outputs = []
         t = 0
         for name, module in self.submodule._modules.items():
-            if name == "classifier" or name == "fc": x = flatten(x, 1)
+            if name == "classifier" or name == "fc" or name == 'last_linear': x = flatten(x, 1)
+            # print(name, x.shape)
             x = module(x)
-            # print(name, module, x.shape)
             if name in self.extracted_layers:
                 outputs.append(x)
                 t += 1
@@ -85,7 +79,7 @@ def calculate_sauc(gt_, s_map_, other_map_=None, splits=100):
     """
     Calculate shuffled AUC.
     """
-    batch_size = gt_.size(0)
+    '''batch_size = gt_.size(0)
     gt_ = torch.where(gt_ > 0, torch.ones_like(gt_), torch.zeros_like(gt_))
     other_map_ = gt_
 
@@ -95,8 +89,18 @@ def calculate_sauc(gt_, s_map_, other_map_=None, splits=100):
 
         gt = gt_[i_].detach().cpu().squeeze(0).numpy()
         s_map = s_map_[i_].detach().cpu().squeeze(0).numpy()
-        other_map = other_map_[i_].detach().cpu().squeeze(0).numpy()
+        other_map = other_map_[i_].detach().cpu().squeeze(0).numpy()'''
+    batch_size = gt_.size(0)
+    # gt_ = torch.where(gt_ > 0, torch.ones_like(gt_), torch.zeros_like(gt_))
+    other_map_ = torch.sum(gt_, dim=0)
+    ret_ = 0
 
+    for i_ in range(batch_size):
+
+        gt = gt_[i_].detach().cpu().squeeze(0).numpy()
+        s_map = s_map_[i_].detach().cpu().squeeze(0).numpy()
+        other_map = (other_map_ - gt_[i_]).detach().cpu().squeeze(0).numpy()
+        other_map[other_map > 0] = 1
         num_fixations = np.sum(gt)
 
         x, y = np.where(other_map == 1)
@@ -157,7 +161,7 @@ def calculate_sauc(gt_, s_map_, other_map_=None, splits=100):
     return ret_ / batch_size
 
 
-def calculate_auc_b(smaps, smaps_pred):
+def calculate_auc_b(gt_, s_map_, other_map_=None, splits=100):
     """
     Calculate AUC-Borji.
     """
@@ -193,9 +197,6 @@ def calculate_auc_j(gt_, s_map_):
         # num fixations is no. of salience map values at gt >0
 
         thresholds = sorted(set(thresholds))
-
-        # fp_list = []
-        # tp_list = []
         area = []
         area.append((0.0, 0.0))
         for thresh in thresholds:
@@ -212,19 +213,12 @@ def calculate_auc_j(gt_, s_map_):
             fp = (np.sum(temp) - num_overlap) / ((np.shape(gt)[0] * np.shape(gt)[1]) - num_fixations)
 
             area.append((round(tp, 4), round(fp, 4)))
-        # tp_list.append(tp)
-        # fp_list.append(fp)
 
-        # tp_list.reverse()
-        # fp_list.reverse()
         area.append((1.0, 1.0))
-        # tp_list.append(1.0)
-        # fp_list.append(1.0)
-        # print tp_list
         area.sort(key=lambda x: x[0])
         tp_list = [x[0] for x in area]
         fp_list = [x[1] for x in area]
-        print(np.trapz(np.array(tp_list), np.array(fp_list)))
+        # print(np.trapz(np.array(tp_list), np.array(fp_list)))
         ret_ += np.trapz(np.array(tp_list), np.array(fp_list))
     return ret_ / batch_size
 
@@ -241,7 +235,7 @@ def calculate_nss(gt, s_map):
     nss = torch.where(s_map_norm * gt > 0, s_map_norm * gt, torch.zeros_like(s_map_norm))
     # tot = torch.sum(nss > 0)
     # print(tot)\
-    print(torch.sum(nss > 0))
+    # print(torch.sum(nss > 0))
     return torch.sum(nss) / (torch.sum(nss > 0))
 
 
@@ -269,46 +263,25 @@ def calculate_sim(gt, s_map):
     gt = normalize_map(gt)
     s_map = s_map / torch.sum(s_map)
     gt = gt / torch.sum(gt)
-    _, (x_, y_) = torch.where(gt > 0)
-    sim = torch.zeros(1)
-    for i in zip(x_, y_):
-        sim = sim + torch.min(gt[i[0], i[1]], s_map[i[0], i[1]])
-    return sim
+    return torch.sum(torch.min(gt, s_map))
 
 
 def calculate_kld(gt, s_map):
     """
     Calculate KL-Divergence.
     """
-    s_map = s_map
-    # gt = torch.where(gt > 0, torch.ones_like(gt), gt * 0)
+    s_map = s_map / torch.sum(s_map)
+    gt = gt / torch.sum(gt)
     eps = 2.2204e-16
-    return torch.mean(gt * torch.log(eps + (gt + eps) / (s_map + eps)))
+    return torch.sum(gt * torch.log(eps + gt / (s_map + eps)))
 
 
-if __name__ == "__main__":
-    import torch
+if __name__ == '__main__':
+    from torch import rand
 
-    #############################################################################
-    # test resnet101
-    if False:
-        extract_list = ["conv1", "maxpool", "layer1", "avgpool", "fc"]
-        extract_result = FeatureExtractor('resnet101', extract_list)
-        x_tensor = torch.randn((10, 3, 224, 224))
-        extract_result(x_tensor)
-    #############################################################################
+    extract_list = ["conv1", "maxpool", "layer1", "avgpool", "fc"]
+    extract_result = FeatureExtractor('se_resnext101', extract_list)
 
-    #############################################################################
-    # test vgg16
-    if True:
-        extract_list = ["15", "22", "relu3"]
-        extract_result = FeatureExtractor('vgg16', extract_list)
-        print(extract_result)
-        x = torch.randn((10, 3, 224, 224))
-        Y = extract_result(x)
-        for y in Y:
-            print(y.size())
-    #############################################################################
-    # model = models.resnet101(pretrained=False)
-    # model = models.vgg16(pretrained=False)
-    # print(model)
+    x_tensor = rand((10, 3, 224, 224))
+    y = extract_result(x_tensor)
+    print(y)

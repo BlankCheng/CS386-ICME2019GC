@@ -31,23 +31,30 @@ class EyeTracker(DT.Dataset):
         self.phase = phase
         self.img_path = os.path.join(args.root_path, args.data_path, "Images", self.phase)
         self.smap_path = os.path.join(args.root_path, args.data_path, "ASD_FixMaps", self.phase)
+        self.fixmap_path = os.path.join(args.root_path, args.data_path, "AdditionalData", "ASD_FixPts")
         self.img_files = os.listdir(self.img_path)
-        self.imgs, self.smaps = [], []  # list of PILs
+        self.imgs, self.smaps, self.fmaps = [], [], []  # list of PILs
         for file in self.img_files:
             img = preprocess(Image.open(os.path.join(self.img_path, file)))
             smap = preprocess(Image.open(os.path.join(self.smap_path, file.split('.')[0] + '_s' + '.png')))
+            fmap = [0]
+            if self.phase != 'train':
+                fmap = preprocess(Image.open(os.path.join(self.fixmap_path, file.split('.')[0] + '_f' + '.png')))
             smap[(smap < CLIP_THRES)] = 0.0
             self.imgs.append(img)
             self.smaps.append(smap)
+            self.fmaps.append(fmap)
 
     def __getitem__(self, index):
         img = self.imgs[index]
         smap = self.smaps[index]
+        fmap = self.fmaps[index]
         torch.manual_seed(random.randint(0, 100))
         if self.phase == 'train':
             img = augment(img)
             smap = augment(smap)
-        return img, smap
+            fmap = augment(fmap)
+        return img, smap, fmap
 
     def __len__(self):
         return len(self.imgs)

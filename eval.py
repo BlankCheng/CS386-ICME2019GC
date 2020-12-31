@@ -1,4 +1,5 @@
 import argparse
+import os
 
 import torch.utils.data as DT
 from tqdm import tqdm
@@ -25,12 +26,12 @@ def arg_parse():
 
 
 if __name__ == '__main__':
+    best_epoch = 47
     args = arg_parse()
     if args.seed != -1:
         torch.manual_seed(args.seed)
     device = torch.device("cuda" if args.cuda else "cpu")
-
-    # load data
+    save_path = os.path.join(args.root_path, './checkpoints')  # load data
     if args.dataset == 'EyeTracker':
         test_dataset = EyeTracker(args=args, phase='test')
     else:
@@ -44,11 +45,12 @@ if __name__ == '__main__':
     )
 
     # config network
-    net = Model(input_size=(3, 224, 224))
-    criterion = nn.MSELoss()
+    net = Model(input_size=(3, 224, 224), encoder_name='resnet101', extract_list=['layer2', 'layer3', 'layer4'],
+                channels=[512, 1024, 2048])
+    criterion = nn.BCELoss()
     net = net.to(device)
     if args.model_path:
-        net.load_state_dict(torch.load(args.model_path))
+        net.load_state_dict(torch.load(os.path.join(save_path, 'w_resnext_best_{}.pth'.format(best_epoch))))
     else:
         raise AssertionError("--model_path is not provided.")
 
@@ -59,7 +61,8 @@ if __name__ == '__main__':
     print("-----------------Testing Start-----------------\n")
     with torch.no_grad():
         for data in tqdm(test_dataloader):
-            img, smap = data[0].to(device), data[1].to(device)
+            img, smap, fmap = data[0].to(device), data[1].to(device), data[2].to(device)
+            # (b, 3, 224, 224), (b, 1, 224, 224)
             smap_pred = net(img)
             loss = criterion(smap_pred, smap)  # TODO
             test_loss += loss
@@ -67,16 +70,19 @@ if __name__ == '__main__':
             if smaps is None:
                 smaps = smap
                 smaps_pred = smap_pred
+                fmaps = fmap
             else:
                 smaps = torch.cat((smaps, smap), dim=0)
                 smaps_pred = torch.cat((smaps_pred, smap_pred), dim=0)
+                fmaps = torch.cat((fmaps, fmap), dim=0)
         print("test loss:{:.4f}".format(test_loss / i))
 
     # metrics
-    sauc = calculate_sauc(smaps, smaps_pred)
+    sauc = calculate_sauc(fmaps, smaps_pred)
     auc_j = calculate_auc_j(smaps, smaps_pred)
     nss = calculate_nss(smaps, smaps_pred)
     cc = calculate_cc(smaps, smaps_pred)
     sim = calculate_sim(smaps, smaps_pred)
     kld = calculate_kld(smaps, smaps_pred)
-    print("sauc:{:.4f} | auc_j:{:.4f} | nss:{:.4f} | cc:{:.4f} | sim:{:.4f} | kld:{:.4f}".format(sauc, auc_j, nss, cc, sim, kld))
+    print("sauc:{:.4f} | auc_j:{:.4f} | nss:{:.4f} | cc:{:.4f} | sim:{:.4f} | kld:{:.4f}".format(sauc, auc_j, nss, cc,
+                                                                                                 sim, kld))

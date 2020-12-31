@@ -19,12 +19,12 @@ def arg_parse():
     parser.add_argument('--save_path', type=str, default='./checkpoints')
     parser.add_argument('--model_path', type=str, default=None)
     parser.add_argument('--dataset', type=str, choices=['EyeTracker', 'MIT1003'], default='EyeTracker')
-    parser.add_argument('--alpha1', type=str, default='1e-1')
-    parser.add_argument('--alpha2', type=str, default='1e-1')
-    parser.add_argument('--alpha3', type=str, default='1e-1')
-    parser.add_argument('--alpha4', type=str, default='1e-1')
-    parser.add_argument('--weight_decay', type=str, default='1e-2')
-    parser.add_argument('--batch_size', type=int, default=8)
+    parser.add_argument('--alpha1', type=str, default='0')
+    parser.add_argument('--alpha2', type=str, default='0')
+    parser.add_argument('--alpha3', type=str, default='0')
+    parser.add_argument('--alpha4', type=str, default='0')
+    parser.add_argument('--weight_decay', type=str, default='1e-4')
+    parser.add_argument('--batch_size', type=int, default=16)
     parser.add_argument('--lr', type=str, default='1e-3')
     parser.add_argument('--max_epochs', type=int, default=100)
     parser.add_argument('--seed', type=int, default=-1)
@@ -73,10 +73,17 @@ if __name__ == '__main__':
     )
 
     # config network
-    net = Model(input_size=(3, 224, 224))
+    '''net = Model(input_size=(3, 224, 224), encoder_name='densenet169', extract_list=['denseblock1', 'denseblock2'],
+                channels=[256, 512])'''
+    net = Model(input_size=(3, 224, 224), encoder_name='resnet101', extract_list=['layer2', 'layer3', 'layer4'],
+                channels=[512, 1024, 2048])
+    '''net = Model(input_size=(3, 224, 224), encoder_name='vgg16', extract_list=["15", "22"],
+                channels=[256, 512])'''
+    '''net = Model(input_size=(3, 224, 224), encoder_name='se_resnext101', extract_list=['layer2', 'layer3', 'layer4'],
+                channels=[512, 1024, 2048])'''
     # net = nn.DataParallel(net)
     optimizer = optim.Adam(net.parameters(), lr=eval(args.lr), betas=(0.9, 0.999), weight_decay=eval(args.weight_decay))
-    mse = nn.MSELoss()
+    bce = nn.BCELoss()
     net = net.to(device)
     if args.model_path is not None:
         net.load_state_dict(torch.load(args.model_path))
@@ -89,10 +96,10 @@ if __name__ == '__main__':
         i, train_loss = 0, 0.0
         net.train()
         for data in tqdm(train_dataloader):
-            img, smap = data[0].to(device), data[1].to(device)  # (b, 3, 224, 224), (b, 1, 224, 224)
+            img, smap, fmap = data[0].to(device), data[1].to(device), data[2]  # (b, 3, 224, 224), (b, 1, 224, 224)
             optimizer.zero_grad()
             smap_pred = net(img)  # (b, 1, 224, 224)
-            loss = 0 * mse(smap_pred, smap) \
+            loss = bce(smap_pred, smap) \
                    - alpha1 * calculate_nss(smap, smap_pred) \
                    - alpha2 * calculate_cc(smap, smap_pred) \
                    - alpha3 * calculate_sim(smap, smap_pred) \
@@ -110,9 +117,9 @@ if __name__ == '__main__':
         net.eval()
         with torch.no_grad():
             for data in tqdm(val_dataloader):
-                img, smap = data[0].to(device), data[1].to(device)
+                img, smap, fmap = data[0].to(device), data[1].to(device), data[2].to(device)  # (b, 3, 224, 224), (b, 1, 224, 224)
                 smap_pred = net(img)
-                loss = 0 * mse(smap_pred, smap) \
+                loss = bce(smap_pred, smap) \
                        - alpha1 * calculate_nss(smap, smap_pred) \
                        - alpha2 * calculate_cc(smap, smap_pred) \
                        - alpha3 * calculate_sim(smap, smap_pred) \
@@ -129,19 +136,20 @@ if __name__ == '__main__':
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
                 print("New best model saved.")
-                torch.save(net.state_dict(), os.path.join(save_path, 'best_{}.pth'.format(epoch)))
+                torch.save(net.state_dict(), os.path.join(save_path, 'w_resnext_best_{}.pth'.format(epoch)))
             # metrics
-            sauc = calculate_sauc(smaps, smaps_pred)
-            auc_j = calculate_auc_j(smaps, smaps_pred)
+            sauc = -1  # calculate_sauc(smaps, smaps_pred)
+            auc_j = -1  # calculate_auc_j(smaps, smaps_pred)
             nss = calculate_nss(smaps, smaps_pred)
             cc = calculate_cc(smaps, smaps_pred)
             sim = calculate_sim(smaps, smaps_pred)
             kld = calculate_kld(smaps, smaps_pred)
             print(
-                "sauc:{:.4f} | auc_j:{:.4f} | nss:{:.4f} | cc:{:.4f} | sim:{:.4f} | kld:{:.4f}".format(-1, -1, nss, cc,
+                "sauc:{:.4f} | auc_j:{:.4f} | nss:{:.4f} | cc:{:.4f} | sim:{:.4f} | kld:{:.4f}".format(sauc, auc_j, nss,
+                                                                                                       cc,
                                                                                                        sim, kld))
             logger.info("#epoch:{}, train loss:{:.4f}, val loss:{:.4f}\n".format(epoch, train_loss / i, val_loss / j))
             logger.info(
                 "#epoch:{}, sauc:{:.4f} | auc_j:{:.4f} | nss:{:.4f} | cc:{:.4f} | sim:{:.4f} | kld:{:.4f}\n".format(
-                    epoch, -1, -1, nss, cc, sim, kld))
+                    epoch, sauc, auc_j, nss, cc, sim, kld))
             print("--------------------------------------------------\n")
