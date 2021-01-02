@@ -27,6 +27,6 @@ The image to visualize is set in visualize.py instead of using arguments.
 
 ## TODO
 - [x] Add pre-training.
-- [ ] Use fancy models.
-- [ ] Complete evaluation.
+- [x] Use fancy models.
+- [x] Complete evaluation. (except sauc)
 
