@@ -38,7 +38,7 @@ class FeatureExtractor(nn.Module):
         t = 0
         for name, module in self.submodule._modules.items():
             if name == "classifier" or name == "fc" or name == 'last_linear': x = flatten(x, 1)
-            # print(name, x.shape)
+            print(name, x.shape)
             x = module(x)
             if name in self.extracted_layers:
                 outputs.append(x)
@@ -280,7 +280,7 @@ if __name__ == '__main__':
     from torch import rand
 
     extract_list = ["conv1", "maxpool", "layer1", "avgpool", "fc"]
-    extract_result = FeatureExtractor('se_resnext101', extract_list)
+    extract_result = FeatureExtractor('resnet101', extract_list)
 
     x_tensor = rand((10, 3, 224, 224))
     y = extract_result(x_tensor)
